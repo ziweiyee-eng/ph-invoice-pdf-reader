@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Reader & Information Extractor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .reset-button {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .reset-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-section.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-name {
+            margin-top: 15px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .info-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .info-section.active {
+            display: block;
+        }
+
+        .info-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab-button {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-button:hover {
+            color: #764ba2;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .info-card p {
+            color: #333;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .stat-label {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            display: none;
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #c33;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .extracted-text {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.8;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .highlight {
+            background: yellow;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            width: 100%;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .documents-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9ff;
+            border-radius: 10px;
+        }
+
+        .doc-item {
+            padding: 10px 15px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9em;
+        }
+
+        .doc-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .doc-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .doc-item .doc-name {
+            font-weight: 600;
+            margin-bottom: 3px;
+        }
+
+        .doc-item .doc-stats {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
+
+        .doc-summary-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .custom-extract-section {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .extract-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .extract-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+
+        .extract-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .extract-button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .extract-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .extract-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .quick-extract-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .quick-extract-btn {
+            padding: 8px 16px;
+            background: #f0f2ff;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+        }
+
+        .quick-extract-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .extract-results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .extract-result-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            word-break: break-word;
+        }
+
+        .extract-result-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .extract-help {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9ff;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="reset-button" id="resetButton" onclick="resetAll()">🔄 Reset</button>
+            <h1>📄 PDF Reader & Information Extractor</h1>
+            <p>Upload PDF files to extract and analyze their content</p>
+        </div>
+
+        <div class="content">
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-icon">📤</div>
+                <h2>Drop your PDFs here or click to browse</h2>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" class="file-input" accept=".pdf" multiple />
+                    <label for="fileInput" class="file-input-label">Choose PDF Files (Multiple)</label>
+                </div>
+                <div class="file-name" id="fileName"></div>
+                <div id="fileList" style="margin-top: 15px;"></div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p id="loadingText">Processing PDF...</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="info-section" id="infoSection">
+                <div class="stats-grid" id="statsGrid"></div>
+
+                <div class="info-tabs">
+                    <button class="tab-button active" data-tab="overview">Overview</button>
+                    <button class="tab-button" data-tab="extract">Custom Extract</button>
+                    <button class="tab-button" data-tab="fulltext">Full Text</button>
+                    <button class="tab-button" data-tab="metadata">Metadata</button>
+                    <button class="tab-button" data-tab="analysis">Analysis</button>
+                </div>
+
+                <div class="tab-content active" id="overview">
+                    <div id="documentsList" style="display: none;"></div>
+                    <div id="allDocumentsSummary"></div>
+                    <div class="info-card" id="currentDocSummary" style="display: none;">
+                        <h3>📊 Current Document Summary</h3>
+                        <div id="summaryContent"></div>
+                    </div>
+                    <div class="info-card" id="currentDocKeyInfo" style="display: none;">
+                        <h3>🔍 Key Information</h3>
+                        <div id="keyInfoContent"></div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="extract">
+                    <div class="custom-extract-section">
+                        <h3 style="color: #667eea; margin-bottom: 15px;">🎯 Custom Information Extraction</h3>
+                        <p style="color: #666; margin-bottom: 20px;">Type keywords, patterns, or use quick extract buttons to find specific information</p>
+                        
+                        <div class="quick-extract-buttons">
+                            <button class="quick-extract-btn" data-type="email">📧 Emails</button>
+                            <button class="quick-extract-btn" data-type="phone">📞 Phone Numbers</button>
+                            <button class="quick-extract-btn" data-type="date">📅 Dates</button>
+                            <button class="quick-extract-btn" data-type="url">🔗 URLs</button>
+                            <button class="quick-extract-btn" data-type="number">🔢 Numbers</button>
+                            <button class="quick-extract-btn" data-type="currency">💰 Currency</button>
+                            <button class="quick-extract-btn" data-type="address">📍 Addresses</button>
+                            <button class="quick-extract-btn" data-type="name">👤 Names</button>
+                            <button class="quick-extract-btn" data-type="total-premium">💵 Total Premium</button>
+                        </div>
+
+                        <div style="margin-bottom: 15px; padding: 15px; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;">
+                            <strong style="color: #856404;">💡 Extract Value After Keyword:</strong>
+                            <p style="color: #856404; margin: 5px 0 0 0; font-size: 0.9em;">
+                                Type a keyword followed by ":" to extract the value that appears after it.<br>
+                                Example: <code style="background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px;">TOTAL:</code> or <code style="background: rgba(0,0,0,0.1); padding: 2px 6px; border-radius: 3px;">Total Premium:</code>
+                            </p>
+                        </div>
+
+                        <div class="extract-input-group">
+                            <input type="text" class="extract-input" id="extractInput" placeholder="Enter keyword, phrase, or regex pattern (e.g., 'TOTAL:', 'invoice', 'INV-\\d+')">
+                            <button class="extract-button" id="extractButton">Extract</button>
+                        </div>
+
+                        <div class="extract-help">
+                            <strong>Tips:</strong> 
+                            <ul style="margin: 5px 0 0 20px; padding: 0;">
+                                <li>Type a keyword followed by ":" to extract the value after it (e.g., "TOTAL:", "Total Premium:")</li>
+                                <li>Type a keyword to find all occurrences (e.g., "invoice", "total")</li>
+                                <li>Use regex patterns for complex matching (e.g., "\\d{4}-\\d{2}-\\d{2}" for dates)</li>
+                                <li>Click quick extract buttons for common data types</li>
+                            </ul>
+                        </div>
+
+                        <div class="extract-results" id="extractResults">
+                            <div class="no-results">No extraction performed yet. Enter a search term above or use a quick extract button.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="fulltext">
+                    <input type="text" class="search-box" id="searchBox" placeholder="Search in text...">
+                    <div class="extracted-text" id="fullTextContent"></div>
+                </div>
+
+                <div class="tab-content" id="metadata">
+                    <div class="info-card">
+                        <h3>📋 PDF Metadata</h3>
+                        <div id="metadataContent"></div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="analysis">
+                    <div class="info-card">
+                        <h3>📈 Content Analysis</h3>
+                        <div id="analysisContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set up PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.getElementById('uploadSection');
+        const fileName = document.getElementById('fileName');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
+        const infoSection = document.getElementById('infoSection');
+        const statsGrid = document.getElementById('statsGrid');
+        const searchBox = document.getElementById('searchBox');
+        const extractInput = document.getElementById('extractInput');
+        const extractButton = document.getElementById('extractButton');
+        const extractResults = document.getElementById('extractResults');
+
+        let pdfDocuments = []; // Array to store all documents
+        let currentDocIndex = -1; // Currently selected document index
+
+        // File input change
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and drop
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+            if (files.length > 0) {
+                // Create a FileList-like object
+                const dataTransfer = new DataTransfer();
+                files.forEach(file => dataTransfer.items.add(file));
+                fileInput.files = dataTransfer.files;
+                handleFileSelect({ target: { files: dataTransfer.files } });
+            }
+        });
+
+        // Tab switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.dataset.tab;
+                
+                // Update buttons
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update content
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(tabName).classList.add('active');
+            });
+        });
+
+        // Search functionality
+        searchBox.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const textContent = document.getElementById('fullTextContent');
+            
+            if (currentDocIndex < 0 || !pdfDocuments[currentDocIndex]) {
+                return;
+            }
+
+            const currentText = pdfDocuments[currentDocIndex].text;
+            
+            if (!searchTerm) {
+                textContent.textContent = currentText;
+                return;
+            }
+
+            const highlightedText = currentText.replace(
+                new RegExp(`(${escapeRegex(searchTerm)})`, 'gi'),
+                '<span class="highlight">$1</span>'
+            );
+            textContent.innerHTML = escapeHtml(highlightedText);
+        });
+
+        // Custom extraction functionality
+        extractButton.addEventListener('click', performCustomExtract);
+        extractInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performCustomExtract();
+            }
+        });
+
+        // Quick extract buttons
+        document.querySelectorAll('.quick-extract-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const type = btn.dataset.type;
+                performQuickExtract(type);
+            });
+        });
+
+        async function handleFileSelect(event) {
+            const files = Array.from(event.target.files).filter(f => f.type === 'application/pdf');
+            if (files.length === 0) {
+                showError('Please select valid PDF files.');
+                return;
+            }
+
+            loading.classList.add('active');
+            errorMessage.classList.remove('active');
+            infoSection.classList.remove('active');
+
+            const fileListHTML = files.map(f => `<span style="display: block; margin: 5px 0;">📄 ${f.name}</span>`).join('');
+            fileName.innerHTML = `<strong>Selected ${files.length} file(s):</strong><br>${fileListHTML}`;
+
+            // Process all files
+            const loadingText = document.getElementById('loadingText');
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                loadingText.textContent = `Processing ${i + 1} of ${files.length}: ${file.name}...`;
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                    const pdfDoc = await loadingTask.promise;
+                    
+                    const docData = {
+                        name: file.name,
+                        document: pdfDoc,
+                        text: '',
+                        metadata: null,
+                        stats: null
+                    };
+
+                    await extractPDFInfoForDocument(docData);
+                    pdfDocuments.push(docData);
+                } catch (error) {
+                    console.error(`Error loading PDF ${file.name}:`, error);
+                    showError(`Failed to load ${file.name}. Skipping...`);
+                }
+            }
+            loadingText.textContent = 'Processing complete!';
+            loading.classList.remove('active');
+            
+            if (pdfDocuments.length > 0) {
+                currentDocIndex = 0;
+                displayAllDocuments();
+                displayAllDocumentsSummary();
+                switchToDocument(0);
+            }
+        }
+
+        async function extractPDFInfoForDocument(docData) {
+            const numPages = docData.document.numPages;
+            let extractedText = '';
+            const metadata = await docData.document.getMetadata();
+
+            // Extract text from all pages
+            for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                const page = await docData.document.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                extractedText += `\n--- Page ${pageNum} ---\n${pageText}\n`;
+            }
+
+            docData.text = extractedText;
+            docData.metadata = metadata;
+            
+            // Calculate stats
+            const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+            const charCount = extractedText.length;
+            const paragraphCount = extractedText.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+            
+            docData.stats = {
+                pages: numPages,
+                words: wordCount,
+                characters: charCount,
+                paragraphs: paragraphCount
+            };
+        }
+
+        function displayAllDocuments() {
+            const documentsList = document.getElementById('documentsList');
+            if (pdfDocuments.length === 0) {
+                documentsList.style.display = 'none';
+                return;
+            }
+
+            documentsList.style.display = 'block';
+            let html = '<div class="documents-list">';
+            pdfDocuments.forEach((doc, index) => {
+                html += `
+                    <div class="doc-item ${index === currentDocIndex ? 'active' : ''}" onclick="switchToDocument(${index})">
+                        <div class="doc-name">${escapeHtml(doc.name)}</div>
+                        <div class="doc-stats">${doc.stats.pages} pages • ${doc.stats.words.toLocaleString()} words</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            documentsList.innerHTML = html;
+        }
+
+        function extractPolicyInfo(text) {
+            const policyInfo = {
+                policyNo: null,
+                classOfInsurance: null
+            };
+            
+            // Split text into lines for searching
+            const lines = text.split(/\n/);
+            
+            // First, try searching the entire text (in case PDF extraction puts things oddly)
+            // Pattern: "POLICY NO.: MFLP9725" or "POLICY NO.:  GRABNAC003" (with one or more spaces)
+            let match = text.match(/POLICY\s+NO[.:]\s+([A-Z0-9]+)/i);
+            if (match && match[1] && match[1].length > 0) {
+                policyInfo.policyNo = match[1].trim();
+            } else {
+                // Try with more flexible spacing (zero or more spaces)
+                match = text.match(/POLICY\s+NO[.:]\s*([A-Z0-9]+)/i);
+                if (match && match[1] && match[1].length > 0) {
+                    policyInfo.policyNo = match[1].trim();
+                } else {
+                    // Try with period instead of colon
+                    match = text.match(/POLICY\s+NO\.\s+([A-Z0-9]+)/i);
+                    if (match && match[1] && match[1].length > 0) {
+                        policyInfo.policyNo = match[1].trim();
+                    } else {
+                        // Try without requiring space between POLICY and NO
+                        match = text.match(/POLICYNO[.:]\s*([A-Z0-9]+)/i);
+                        if (match && match[1] && match[1].length > 0) {
+                            policyInfo.policyNo = match[1].trim();
+                        } else {
+                            // Try case-insensitive search for "policy no"
+                            const upperText = text.toUpperCase();
+                            const policyIndex = upperText.indexOf('POLICY');
+                            const noIndex = upperText.indexOf('NO', policyIndex);
+                            if (policyIndex >= 0 && noIndex > policyIndex && noIndex < policyIndex + 20) {
+                                // Found POLICY and NO close together, extract what comes after
+                                const afterNo = text.substring(noIndex + 2);
+                                match = afterNo.match(/[.:]\s*([A-Z0-9]+)/i);
+                                if (match && match[1] && match[1].length > 0) {
+                                    policyInfo.policyNo = match[1].trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Also search line by line as backup
+            if (!policyInfo.policyNo) {
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    
+                    // Check if line contains POLICY NO pattern
+                    if (/POLICY/i.test(line) && /NO/i.test(line)) {
+                        // Pattern: "POLICY NO.: MFLP9725" or "POLICY NO.:  GRABNAC003"
+                        match = line.match(/POLICY\s+NO[.:]\s+([A-Z0-9]+)/i);
+                        if (match && match[1] && match[1].length > 0) {
+                            policyInfo.policyNo = match[1].trim();
+                            break;
+                        }
+                        
+                        // More flexible pattern (zero or more spaces)
+                        match = line.match(/POLICY\s+NO[.:]\s*([A-Z0-9]+)/i);
+                        if (match && match[1] && match[1].length > 0) {
+                            policyInfo.policyNo = match[1].trim();
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Extract CLASS OF INSURANCE - search for lines containing "CLASS OF INSURANCE:"
+            // First try searching entire text, but stop at PARTICULARS or other field markers
+            let classMatch = text.match(/CLASS\s+OF\s+INSURANCE[.:]\s+(.+?)(?:\s+PARTICULARS|POLICY\s+NO|PERIODOFINSURANCE|TOTAL|POLICY|INVOICE|DECLARATION|DESCRIPTION|$)/i);
+            if (classMatch && classMatch[1]) {
+                policyInfo.classOfInsurance = classMatch[1].trim()
+                    .replace(/[,\n\r]+$/, '')
+                    .replace(/\s+PARTICULARS.*$/i, '')  // Remove PARTICULARS and everything after
+                    .replace(/\s+DECLARATION.*$/i, '')  // Remove DECLARATION and everything after
+                    .replace(/\s+DESCRIPTION.*$/i, '')  // Remove DESCRIPTION and everything after
+                    .trim()
+                    .replace(/\s+/g, ' ')
+                    .substring(0, 200);
+            } else {
+                // Also search line by line as backup
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+                    
+                    // Check if line contains CLASS OF INSURANCE pattern
+                    if (/CLASS\s+OF\s+INSURANCE[.:]/i.test(line)) {
+                        // Pattern: "CLASS OF INSURANCE: Multimodal Freight Liability" - stop at PARTICULARS or other markers
+                        let match = line.match(/CLASS\s+OF\s+INSURANCE[.:]\s+(.+?)(?:\s+PARTICULARS|POLICY\s+NO|PERIODOFINSURANCE|TOTAL|POLICY|INVOICE|DECLARATION|DESCRIPTION|$)/i);
+                        if (match && match[1]) {
+                            policyInfo.classOfInsurance = match[1].trim()
+                                .replace(/[,\n\r]+$/, '')
+                                .replace(/\s+PARTICULARS.*$/i, '')
+                                .replace(/\s+DECLARATION.*$/i, '')
+                                .replace(/\s+DESCRIPTION.*$/i, '')
+                                .trim()
+                                .replace(/\s+/g, ' ')
+                                .substring(0, 200);
+                            break;
+                        }
+                        
+                        // Fallback: Extract until end of line, but clean up PARTICULARS if present
+                        match = line.match(/CLASS\s+OF\s+INSURANCE[.:]\s+(.+)/i);
+                        if (match && match[1]) {
+                            policyInfo.classOfInsurance = match[1].trim()
+                                .replace(/[,\n\r]+$/, '')
+                                .replace(/\s+PARTICULARS.*$/i, '')
+                                .replace(/\s+DECLARATION.*$/i, '')
+                                .replace(/\s+DESCRIPTION.*$/i, '')
+                                .trim()
+                                .replace(/\s+/g, ' ')
+                                .substring(0, 200);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            return policyInfo;
+        }
+
+        function extractInvoiceInfo(text) {
+            const invoices = [];
+            
+            // Pattern to match invoice numbers: "No." followed by spaces and code starting with VP or NP
+            // Format: "No.     NP0000003332" or "No. VP123456" etc.
+            const invoiceRegex = /No\.\s+((?:VP|NP)[A-Z0-9]+)/gi;
+            const invoiceMatches = [...text.matchAll(invoiceRegex)];
+            
+            invoiceMatches.forEach(match => {
+                const invoiceNumber = match[1];
+                const invoiceIndex = match.index;
+                
+                // Find the TOTAL amount - look for it on the same line or nearby lines
+                // Split text into lines to search line by line
+                const textAfterInvoice = text.substring(invoiceIndex);
+                const lines = textAfterInvoice.split(/\n/);
+                
+                let bestMatch = null;
+                
+                // Search through lines looking for "TOTAL" on the same line as a number
+                for (let i = 0; i < Math.min(30, lines.length); i++) {
+                    const line = lines[i].trim();
+                    
+                    // Skip empty lines
+                    if (!line) continue;
+                    
+                    // Check if line contains "TOTAL" (case insensitive)
+                    if (!/TOTAL/i.test(line)) continue;
+                    
+                    // PHP currency patterns: ₱, PHP, Php, P (with or without space)
+                    // Pattern 1: "TOTAL" followed by colon/space and then PHP currency + number
+                    // Examples: "TOTAL: ₱1,234.56" or "TOTAL PHP 1,234.56" or "TOTAL Php 1234.56"
+                    let match = line.match(/TOTAL\s*[:]?\s*(?:₱|PHP|Php|P)\s*([\d,]+\.\d{2})/i);
+                    if (match) {
+                        bestMatch = { value: match[1], fullLine: line };
+                        break; // Found exact match with decimal, use this
+                    }
+                    
+                    // Pattern 2: "TOTAL" followed by number with PHP currency symbol before it
+                    match = line.match(/TOTAL\s*[:]?\s*(?:₱|PHP|Php|P)?\s*([\d,]+\.\d{2})/i);
+                    if (match && !bestMatch) {
+                        bestMatch = { value: match[1], fullLine: line };
+                        break;
+                    }
+                    
+                    // Pattern 3: "TOTAL" followed by number without decimal (might be whole peso amount)
+                    match = line.match(/TOTAL\s*[:]?\s*(?:₱|PHP|Php|P)?\s*([\d,]+)(?!\.\d)/i);
+                    if (match && !bestMatch) {
+                        bestMatch = { value: match[1], fullLine: line };
+                        // Continue searching for decimal version
+                    }
+                    
+                    // Pattern 4: PHP currency + number before "TOTAL" (right-aligned format)
+                    // Examples: "₱1,234.56 TOTAL" or "PHP 1,234.56 TOTAL"
+                    match = line.match(/(?:₱|PHP|Php|P)\s*([\d,]+\.\d{2})\s+TOTAL/i);
+                    if (match && !bestMatch) {
+                        bestMatch = { value: match[1], fullLine: line };
+                    }
+                    
+                    // Pattern 5: Number before "TOTAL" (without currency symbol)
+                    match = line.match(/([\d,]+\.\d{2})\s+TOTAL/i);
+                    if (match && !bestMatch) {
+                        bestMatch = { value: match[1], fullLine: line };
+                    }
+                    
+                    // Pattern 6: Extract the largest/last number on a line with "TOTAL"
+                    // This handles cases where there might be multiple numbers
+                    const allNumbers = line.match(/([\d,]+\.\d{2})/g);
+                    if (allNumbers && allNumbers.length > 0 && !bestMatch) {
+                        // Take the last number (usually the total)
+                        const lastNumber = allNumbers[allNumbers.length - 1];
+                        bestMatch = { value: lastNumber, fullLine: line };
+                    }
+                }
+                
+                if (bestMatch) {
+                    invoices.push({
+                        invoiceNumber: invoiceNumber,
+                        total: bestMatch.value,
+                        fullTotal: bestMatch.fullLine
+                    });
+                } else {
+                    // Still add invoice number even if no total found
+                    invoices.push({
+                        invoiceNumber: invoiceNumber,
+                        total: 'Not found',
+                        fullTotal: ''
+                    });
+                }
+            });
+            
+            return invoices;
+        }
+
+        function displayAllDocumentsSummary() {
+            const allDocsSummary = document.getElementById('allDocumentsSummary');
+            if (pdfDocuments.length === 0) {
+                allDocsSummary.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            pdfDocuments.forEach((doc, index) => {
+                // Extract invoice numbers and totals
+                const invoices = extractInvoiceInfo(doc.text);
+                // Extract policy information
+                const policyInfo = extractPolicyInfo(doc.text);
+                
+                // Basic document info
+                html += `
+                    <div class="doc-summary-card">
+                        <h4>📄 ${escapeHtml(doc.name)}</h4>
+                        <p style="margin-bottom: 15px;"><strong>Pages:</strong> ${doc.stats.pages} | <strong>Words:</strong> ${doc.stats.words.toLocaleString()} | <strong>Characters:</strong> ${doc.stats.characters.toLocaleString()}</p>
+                `;
+                
+                // Display policy information - always show the section if we have any data
+                html += `
+                    <div style="margin-top: 15px; padding: 15px; background: #e8f5e9; border-radius: 8px; border-left: 4px solid #4caf50;">
+                        <h5 style="color: #2e7d32; margin-bottom: 10px; font-size: 1.1em;">📋 Policy Information</h5>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tbody>
+                `;
+                
+                if (policyInfo.policyNo) {
+                    html += `
+                        <tr>
+                            <td style="padding: 8px 10px; font-weight: 600; color: #333; width: 40%;">Policy No:</td>
+                            <td style="padding: 8px 10px; color: #2e7d32; font-weight: 600;">${escapeHtml(policyInfo.policyNo)}</td>
+                        </tr>
+                    `;
+                } else {
+                    html += `
+                        <tr>
+                            <td style="padding: 8px 10px; font-weight: 600; color: #333; width: 40%;">Policy No:</td>
+                            <td style="padding: 8px 10px; color: #999; font-style: italic;">Not found</td>
+                        </tr>
+                    `;
+                }
+                
+                if (policyInfo.classOfInsurance) {
+                    html += `
+                        <tr>
+                            <td style="padding: 8px 10px; font-weight: 600; color: #333; width: 40%;">Class of Insurance:</td>
+                            <td style="padding: 8px 10px; color: #2e7d32;">${escapeHtml(policyInfo.classOfInsurance)}</td>
+                        </tr>
+                    `;
+                } else {
+                    html += `
+                        <tr>
+                            <td style="padding: 8px 10px; font-weight: 600; color: #333; width: 40%;">Class of Insurance:</td>
+                            <td style="padding: 8px 10px; color: #999; font-style: italic;">Not found</td>
+                        </tr>
+                    `;
+                }
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                // Display invoice information
+                if (invoices.length > 0) {
+                    html += `
+                        <div style="margin-top: 15px; padding: 15px; background: #f8f9ff; border-radius: 8px; border-left: 4px solid #667eea;">
+                            <h5 style="color: #667eea; margin-bottom: 10px; font-size: 1.1em;">🧾 Invoice Information</h5>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #e8ebff;">
+                                        <th style="padding: 10px; text-align: left; border-bottom: 2px solid #667eea;">Invoice Number</th>
+                                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #667eea;">Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    invoices.forEach((invoice, invIndex) => {
+                        html += `
+                            <tr style="border-bottom: 1px solid #e0e0e0;">
+                                <td style="padding: 10px; font-weight: 600; color: #333;">No. ${escapeHtml(invoice.invoiceNumber)}</td>
+                                <td style="padding: 10px; text-align: right; color: ${invoice.total === 'Not found' ? '#999' : '#28a745'}; font-weight: ${invoice.total === 'Not found' ? 'normal' : 'bold'};">
+                                    ${invoice.total === 'Not found' ? '<em>Not found</em>' : '₱' + escapeHtml(invoice.total)}
+                                </td>
+                            </tr>
+                            ${invoice.fullTotal && invoice.total !== 'Not found' ? `
+                            <tr style="background: #f8f9fa;">
+                                <td colspan="2" style="padding: 5px 10px; font-size: 0.85em; color: #666; font-style: italic;">
+                                    Found in: "${escapeHtml(invoice.fullTotal.substring(0, 100))}"
+                                </td>
+                            </tr>
+                            ` : ''}
+                        `;
+                    });
+                    
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                            <p style="color: #856404; margin: 0;">⚠️ No invoice numbers found in this document.</p>
+                        </div>
+                    `;
+                }
+                
+                html += `</div>`;
+            });
+
+            allDocsSummary.innerHTML = html;
+        }
+
+        function switchToDocument(index) {
+            if (index < 0 || index >= pdfDocuments.length) return;
+            
+            currentDocIndex = index;
+            const doc = pdfDocuments[index];
+
+            // Update document list highlighting
+            displayAllDocuments();
+
+            // Display current document stats
+            displayStats(doc.stats.pages, doc.text, doc.metadata);
+
+            // Display overview
+            displayOverview(doc.text, doc.metadata);
+
+            // Display full text
+            document.getElementById('fullTextContent').textContent = doc.text;
+
+            // Display metadata
+            displayMetadata(doc.metadata);
+
+            // Display analysis
+            displayAnalysis(doc.text);
+
+            // Show current doc sections
+            document.getElementById('currentDocSummary').style.display = 'block';
+            document.getElementById('currentDocKeyInfo').style.display = 'block';
+
+            infoSection.classList.add('active');
+        }
+
+        window.switchToDocument = switchToDocument;
+
+        function resetAll() {
+            // Clear all documents
+            pdfDocuments = [];
+            currentDocIndex = -1;
+            
+            // Reset file input
+            fileInput.value = '';
+            fileName.textContent = '';
+            document.getElementById('fileList').innerHTML = '';
+            
+            // Hide info sections
+            infoSection.classList.remove('active');
+            loading.classList.remove('active');
+            errorMessage.classList.remove('active');
+            
+            // Clear all displayed content
+            document.getElementById('allDocumentsSummary').innerHTML = '';
+            document.getElementById('documentsList').style.display = 'none';
+            document.getElementById('summaryContent').innerHTML = '';
+            document.getElementById('keyInfoContent').innerHTML = '';
+            document.getElementById('fullTextContent').textContent = '';
+            document.getElementById('metadataContent').innerHTML = '';
+            document.getElementById('analysisContent').innerHTML = '';
+            document.getElementById('statsGrid').innerHTML = '';
+            document.getElementById('extractResults').innerHTML = '<div class="no-results">No extraction performed yet. Enter a search term above or use a quick extract button.</div>';
+            extractInput.value = '';
+            searchBox.value = '';
+            
+            // Reset to first tab
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector('.tab-button[data-tab="overview"]').classList.add('active');
+            document.getElementById('overview').classList.add('active');
+            
+            // Hide current doc sections
+            document.getElementById('currentDocSummary').style.display = 'none';
+            document.getElementById('currentDocKeyInfo').style.display = 'none';
+        }
+
+        function displayStats(numPages, text, metadata) {
+            const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+            const charCount = text.length;
+            const charCountNoSpaces = text.replace(/\s/g, '').length;
+            const paragraphCount = text.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${numPages}</div>
+                    <div class="stat-label">Pages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${wordCount.toLocaleString()}</div>
+                    <div class="stat-label">Words</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${charCount.toLocaleString()}</div>
+                    <div class="stat-label">Characters</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${paragraphCount}</div>
+                    <div class="stat-label">Paragraphs</div>
+                </div>
+            `;
+        }
+
+        function displayOverview(text, metadata) {
+            // Extract key information
+            const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+            const phoneRegex = /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+            const urlRegex = /https?:\/\/[^\s]+/g;
+            const dateRegex = /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g;
+
+            const emails = [...new Set(text.match(emailRegex) || [])];
+            const phones = [...new Set(text.match(phoneRegex) || [])];
+            const urls = [...new Set(text.match(urlRegex) || [])];
+            const dates = [...new Set(text.match(dateRegex) || [])];
+
+            // Get first few sentences as summary
+            const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+            const summary = sentences.slice(0, 3).join('. ') + '.';
+
+            let summaryHTML = `<p><strong>Document Preview:</strong> ${summary}</p>`;
+            
+            let keyInfoHTML = '';
+            if (emails.length > 0) {
+                keyInfoHTML += `<p><strong>📧 Email Addresses:</strong> ${emails.join(', ')}</p>`;
+            }
+            if (phones.length > 0) {
+                keyInfoHTML += `<p><strong>📞 Phone Numbers:</strong> ${phones.slice(0, 5).join(', ')}</p>`;
+            }
+            if (urls.length > 0) {
+                keyInfoHTML += `<p><strong>🔗 URLs:</strong> ${urls.slice(0, 5).join(', ')}</p>`;
+            }
+            if (dates.length > 0) {
+                keyInfoHTML += `<p><strong>📅 Dates:</strong> ${dates.slice(0, 5).join(', ')}</p>`;
+            }
+
+            if (!keyInfoHTML) {
+                keyInfoHTML = '<p>No specific contact information or dates found in the document.</p>';
+            }
+
+            document.getElementById('summaryContent').innerHTML = summaryHTML;
+            document.getElementById('keyInfoContent').innerHTML = keyInfoHTML;
+        }
+
+        function displayMetadata(metadata) {
+            let metadataHTML = '';
+            
+            if (metadata.info) {
+                const info = metadata.info;
+                metadataHTML += `<p><strong>Title:</strong> ${info.Title || 'N/A'}</p>`;
+                metadataHTML += `<p><strong>Author:</strong> ${info.Author || 'N/A'}</p>`;
+                metadataHTML += `<p><strong>Subject:</strong> ${info.Subject || 'N/A'}</p>`;
+                metadataHTML += `<p><strong>Creator:</strong> ${info.Creator || 'N/A'}</p>`;
+                metadataHTML += `<p><strong>Producer:</strong> ${info.Producer || 'N/A'}</p>`;
+                metadataHTML += `<p><strong>Creation Date:</strong> ${info.CreationDate || 'N/A'}</p>`;
+                metadataHTML += `<p><strong>Modification Date:</strong> ${info.ModDate || 'N/A'}</p>`;
+            }
+
+            if (metadata.metadata) {
+                metadataHTML += `<p><strong>PDF Version:</strong> ${metadata.metadata.get('pdf:PDFVersion') || 'N/A'}</p>`;
+            }
+
+            document.getElementById('metadataContent').innerHTML = metadataHTML || '<p>No metadata available.</p>';
+        }
+
+        function displayAnalysis(text) {
+            if (currentDocIndex < 0 || !pdfDocuments[currentDocIndex]) {
+                return;
+            }
+
+            const doc = pdfDocuments[currentDocIndex];
+            const words = text.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+            const wordFreq = {};
+            
+            words.forEach(word => {
+                wordFreq[word] = (wordFreq[word] || 0) + 1;
+            });
+
+            const topWords = Object.entries(wordFreq)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 20)
+                .map(([word, count]) => `${word} (${count})`)
+                .join(', ');
+
+            const analysisHTML = `
+                <p><strong>Most Common Words:</strong> ${topWords}</p>
+                <p><strong>Reading Time:</strong> Approximately ${Math.ceil(words.length / 200)} minutes</p>
+                <p><strong>Average Words per Page:</strong> ${Math.round(words.length / doc.stats.pages)}</p>
+            `;
+
+            document.getElementById('analysisContent').innerHTML = analysisHTML;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('active');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function performCustomExtract() {
+            if (currentDocIndex < 0 || !pdfDocuments[currentDocIndex]) {
+                showError('Please upload a PDF first.');
+                return;
+            }
+
+            const extractedText = pdfDocuments[currentDocIndex].text;
+            const searchTerm = extractInput.value.trim();
+            if (!searchTerm) {
+                extractResults.innerHTML = '<div class="no-results">Please enter a search term.</div>';
+                return;
+            }
+
+            try {
+                let matches = [];
+
+                // Check if user wants to extract value after a keyword (format: "KEYWORD:")
+                if (searchTerm.endsWith(':')) {
+                    const keyword = searchTerm.slice(0, -1).trim();
+                    matches = extractValueAfterKeyword(keyword);
+                    if (matches.length > 0) {
+                        displayExtractResults(matches, `Value after "${keyword}"`);
+                    } else {
+                        extractResults.innerHTML = `<div class="no-results">No value found after "${keyword}". Try searching for "${keyword}" to see where it appears in the document.</div>`;
+                    }
+                    return;
+                }
+
+                // Try to use as regex first, fallback to simple search
+                try {
+                    const regex = new RegExp(searchTerm, 'gi');
+                    const regexMatches = [...extractedText.matchAll(regex)];
+                    matches = regexMatches.map(m => ({
+                        text: m[0],
+                        index: m.index,
+                        context: getContext(extractedText, m.index, m[0].length)
+                    }));
+                } catch (e) {
+                    // If regex fails, do simple text search
+                    const searchLower = searchTerm.toLowerCase();
+                    const textLower = extractedText.toLowerCase();
+                    let index = 0;
+                    while ((index = textLower.indexOf(searchLower, index)) !== -1) {
+                        matches.push({
+                            text: extractedText.substring(index, index + searchTerm.length),
+                            index: index,
+                            context: getContext(extractedText, index, searchTerm.length)
+                        });
+                        index += searchTerm.length;
+                    }
+                }
+
+                displayExtractResults(matches, searchTerm);
+            } catch (error) {
+                console.error('Extraction error:', error);
+                extractResults.innerHTML = '<div class="no-results">Error performing extraction. Please check your search pattern.</div>';
+            }
+        }
+
+        function extractValueAfterKeyword(keyword) {
+            if (currentDocIndex < 0 || !pdfDocuments[currentDocIndex]) {
+                return [];
+            }
+
+            const extractedText = pdfDocuments[currentDocIndex].text;
+            const matches = [];
+            const keywordLower = keyword.toLowerCase();
+            const textLower = extractedText.toLowerCase();
+            
+            // Find all occurrences of the keyword
+            let searchIndex = 0;
+            while ((searchIndex = textLower.indexOf(keywordLower, searchIndex)) !== -1) {
+                // Find the position after the keyword
+                const afterKeywordIndex = searchIndex + keyword.length;
+                const remainingText = extractedText.substring(afterKeywordIndex);
+                
+                // Try to extract value - look for numbers, currency, or text on same/next line
+                // Pattern 1: Currency format ($123.45, $1,234.56)
+                let currencyMatch = remainingText.match(/^\s*[:]?\s*\$?\s*([\d,]+\.?\d*)/);
+                if (currencyMatch) {
+                    const value = currencyMatch[1];
+                    const fullMatch = remainingText.substring(0, currencyMatch[0].length);
+                    matches.push({
+                        text: value,
+                        fullMatch: fullMatch,
+                        index: afterKeywordIndex,
+                        context: getContext(extractedText, searchIndex, keyword.length + fullMatch.length)
+                    });
+                } else {
+                    // Pattern 2: Any number (with or without commas/decimals)
+                    let numberMatch = remainingText.match(/^\s*[:]?\s*([\d,]+\.?\d*)/);
+                    if (numberMatch) {
+                        const value = numberMatch[1];
+                        const fullMatch = remainingText.substring(0, numberMatch[0].length);
+                        matches.push({
+                            text: value,
+                            fullMatch: fullMatch,
+                            index: afterKeywordIndex,
+                            context: getContext(extractedText, searchIndex, keyword.length + fullMatch.length)
+                        });
+                    } else {
+                        // Pattern 3: Text on the same line or next line (up to 50 chars)
+                        let textMatch = remainingText.match(/^\s*[:]?\s*([^\n]{1,50})/);
+                        if (textMatch) {
+                            const value = textMatch[1].trim();
+                            if (value.length > 0) {
+                                const fullMatch = remainingText.substring(0, textMatch[0].length);
+                                matches.push({
+                                    text: value,
+                                    fullMatch: fullMatch,
+                                    index: afterKeywordIndex,
+                                    context: getContext(extractedText, searchIndex, keyword.length + fullMatch.length)
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                searchIndex += keyword.length;
+            }
+            
+            return matches;
+        }
+
+        function performQuickExtract(type) {
+            if (currentDocIndex < 0 || !pdfDocuments[currentDocIndex]) {
+                showError('Please upload a PDF first.');
+                return;
+            }
+
+            let regex;
+            let label;
+
+            switch(type) {
+                case 'email':
+                    regex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+                    label = 'Email Addresses';
+                    break;
+                case 'phone':
+                    regex = /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+                    label = 'Phone Numbers';
+                    break;
+                case 'date':
+                    regex = /\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\b|\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b/gi;
+                    label = 'Dates';
+                    break;
+                case 'url':
+                    regex = /https?:\/\/[^\s]+/g;
+                    label = 'URLs';
+                    break;
+                case 'number':
+                    regex = /\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\b/g;
+                    label = 'Numbers';
+                    break;
+                case 'currency':
+                    regex = /\$[\d,]+(?:\.\d{2})?|\b\d+\.\d{2}\s*(?:USD|EUR|GBP|JPY)\b/gi;
+                    label = 'Currency Amounts';
+                    break;
+                case 'address':
+                    regex = /\d+\s+[A-Za-z0-9\s,]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Way|Parkway|Pkwy)[\s,]+[A-Za-z\s]+,\s*[A-Z]{2}\s+\d{5}/gi;
+                    label = 'Addresses';
+                    break;
+                case 'name':
+                    regex = /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g;
+                    label = 'Names';
+                    break;
+                case 'total-premium':
+                    // Extract total premium after "TOTAL" keyword
+                    const premiumMatches = extractValueAfterKeyword('TOTAL');
+                    if (premiumMatches.length > 0) {
+                        extractInput.value = 'TOTAL:';
+                        displayExtractResults(premiumMatches, 'Total Premium');
+                    } else {
+                        // Also try "Total Premium" or "Total"
+                        let altMatches = extractValueAfterKeyword('Total Premium');
+                        if (altMatches.length === 0) {
+                            altMatches = extractValueAfterKeyword('Total');
+                        }
+                        if (altMatches.length > 0) {
+                            extractInput.value = 'Total Premium:';
+                            displayExtractResults(altMatches, 'Total Premium');
+                        } else {
+                            extractInput.value = 'TOTAL:';
+                            extractResults.innerHTML = '<div class="no-results">No total premium found. Try searching for "TOTAL" to see where it appears.</div>';
+                        }
+                    }
+                    return;
+                default:
+                    return;
+            }
+
+            const extractedText = pdfDocuments[currentDocIndex].text;
+            const matches = [...new Set([...extractedText.matchAll(regex)].map(m => ({
+                text: m[0],
+                index: m.index,
+                context: getContext(extractedText, m.index, m[0].length)
+            })))];
+
+            extractInput.value = label;
+            displayExtractResults(matches, label);
+        }
+
+        function getContext(text, index, length) {
+            const start = Math.max(0, index - 50);
+            const end = Math.min(text.length, index + length + 50);
+            const context = text.substring(start, end);
+            const matchStart = index - start;
+            const before = context.substring(0, matchStart);
+            const match = context.substring(matchStart, matchStart + length);
+            const after = context.substring(matchStart + length);
+            
+            return {
+                before: before.trim(),
+                match: match,
+                after: after.trim()
+            };
+        }
+
+        function displayExtractResults(matches, searchTerm) {
+            if (matches.length === 0) {
+                extractResults.innerHTML = `<div class="no-results">No matches found for "${searchTerm}"</div>`;
+                return;
+            }
+
+            let html = `<div style="margin-bottom: 15px; color: #667eea; font-weight: 600; font-size: 1.1em;">
+                Found ${matches.length} match${matches.length !== 1 ? 'es' : ''} for "${searchTerm}"
+            </div>`;
+
+            matches.forEach((match, index) => {
+                const context = match.context;
+                const displayText = match.fullMatch ? escapeHtml(match.fullMatch) : escapeHtml(match.text);
+                html += `
+                    <div class="extract-result-item">
+                        <strong>Match #${index + 1}: <span style="color: #28a745; font-size: 1.1em;">${escapeHtml(match.text)}</span></strong>
+                        <div style="color: #666; font-size: 0.9em; margin-top: 5px;">
+                            <span style="color: #999;">...</span>${escapeHtml(context.before)}
+                            <span style="background: yellow; font-weight: bold;">${escapeHtml(context.match)}</span>
+                            ${escapeHtml(context.after)}<span style="color: #999;">...</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            extractResults.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
